@@ -45,13 +45,13 @@ jobs:
       - name: Build Agent2.exe
         run: >-
           python -m PyInstaller --noconfirm --clean --onefile --windowed
-          --name Agent2 --collect-all PySide6 --collect-all keyring
+          --name Agent2 --collect-all keyring
           --hidden-import keyring.backends.Windows main.py
 
       - name: Build UsageLimitEditor.exe
         run: >-
           python -m PyInstaller --noconfirm --clean --onefile --windowed
-          --name UsageLimitEditor --collect-all PySide6 --collect-all keyring
+          --name UsageLimitEditor --collect-all keyring
           --hidden-import keyring.backends.Windows usage_limit_editor.py
 
       - name: Create downloadable archive
@@ -61,10 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Agent2-Windows-${{ github.run_number }}
-          path: |
-            dist/Agent2.exe
-            dist/UsageLimitEditor.exe
-            dist/Agent2-Windows.zip
+          path: dist/Agent2-Windows.zip
           if-no-files-found: error
           retention-days: 30
 
