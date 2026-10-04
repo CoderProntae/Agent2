@@ -29,6 +29,14 @@ def test_command_runner_blocks_shell_and_unknown_executables(tmp_path: Path) -> 
     assert runner.run(command).stdout.strip().splitlines() == ["1", "2"]
 
 
+def test_filesystem_commands_are_refused_with_workspace_tool_guidance(tmp_path: Path) -> None:
+    runner = CommandRunner(WorkspaceService(tmp_path))
+    result = runner.run("mkdir test_projesi")
+    assert result.exit_code == 126
+    assert "write_file" in result.stderr
+    assert "üst klasörleri kendisi oluşturur" in result.stderr
+
+
 def test_command_timeout_is_reported(tmp_path: Path) -> None:
     runner = CommandRunner(WorkspaceService(tmp_path))
     command = f'{python_executable()} -c "import time; time.sleep(2)"'

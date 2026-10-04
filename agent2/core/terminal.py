@@ -100,6 +100,11 @@ class CommandRunner:
         if executable.endswith(".exe"):
             executable = executable[:-4]
         if executable not in cls.ALLOWED_EXECUTABLES:
+            if executable in {"mkdir", "md", "rmdir", "rd", "rm", "del", "copy", "move", "mv", "ls", "dir", "cd", "cat", "type", "touch"}:
+                raise ValueError(
+                    f"'{executable}' terminal komutu güvenlik nedeniyle izinli değil. Dosya/klasör işlemleri için "
+                    "list_files, read_file veya write_file kullanın; write_file gerekli üst klasörleri kendisi oluşturur."
+                )
             allowed = ", ".join(sorted(cls.ALLOWED_EXECUTABLES))
             raise ValueError(f"'{executable}' izin verilen araçlar listesinde değil. İzin verilenler: {allowed}")
         return args

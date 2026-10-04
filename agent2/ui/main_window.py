@@ -42,13 +42,15 @@ from PySide6.QtWidgets import (
 
 from agent2.core.agent import AgentService
 from agent2.core.config import AppConfig, SecretStore
-from agent2.core.git_service import GitService, GitResult
+from agent2.core.git_service import GitResult, GitService
 from agent2.core.ollama import OllamaClient
 from agent2.core.sessions import SessionStore
-from agent2.core.terminal import CommandRunner, CommandResult
+from agent2.core.terminal import CommandResult, CommandRunner
 from agent2.core.usage import UsageStore
 from agent2.core.workspace import ChangeRecord, WorkspaceError, WorkspaceService
+
 from .dialogs import SettingsDialog
+from .markdown import fenced_code_block
 from .workers import AgentWorker, GitSyncWorker, ManualCommandWorker
 
 logger = logging.getLogger(__name__)
@@ -521,8 +523,7 @@ class MainWindow(QMainWindow):
                 parts.append("---\n\n")
             elif role == "tool":
                 title = html.escape(str(message.get("tool_name", "araç")))
-                escaped = html.escape(content)
-                parts.append(f"#### ⚙ Araç sonucu · `{title}`\n\n````json\n{escaped}\n````\n\n")
+                parts.append(f"#### ⚙ Araç sonucu · `{title}`\n\n" + fenced_code_block(content, "json"))
         if self._streaming_text:
             parts.append("### ◈ Agent2 · yazıyor…\n\n" + html.escape(self._streaming_text) + "\n")
         if self._run_error:

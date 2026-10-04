@@ -35,7 +35,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     _tool("read_file", "Çalışma alanındaki UTF-8 metin dosyasını oku (en fazla 1 MB).", {
         "path": {"type": "string"},
     }, ("path",)),
-    _tool("write_file", "Dosya oluştur veya tamamen üzerine yaz. Her çağrı kullanıcı onayı gerektirir.", {
+    _tool("write_file", "Çalışma alanında dosya oluştur veya tamamen üzerine yaz; gerekli üst klasörleri kendisi oluşturur. Her çağrı kullanıcı onayı gerektirir.", {
         "path": {"type": "string"}, "content": {"type": "string"},
     }, ("path", "content")),
     _tool("edit_file", "Dosyada yalnızca tam bir kez bulunan eski metni yeni metinle değiştir. Her çağrı onay gerektirir.", {
@@ -47,7 +47,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     _tool("rename_path", "Bir dosyayı yeniden adlandır. Var olan hedefin üzerine yazmaz; onay gerekir.", {
         "source": {"type": "string"}, "destination": {"type": "string"},
     }, ("source", "destination")),
-    _tool("run_command", "Çalışma alanında izin verilen bir geliştirme komutunu kabuk kullanmadan çalıştır. Her komut için onay gerekir; program kullanıcı hesabının yetkilerine sahiptir.", {
+    _tool("run_command", "Yalnızca izin listesindeki geliştirme komutlarını kabuksuz çalıştır (mkdir gibi dosya sistemi komutları izinli değildir; dosyalar için write_file/list_files kullan). Her komut için onay gerekir; program kullanıcı hesabının yetkilerine sahiptir.", {
         "command": {"type": "string"}, "timeout": {"type": "integer", "description": "İstenen saniye; yönetici üst sınırını aşamaz"},
     }, ("command",)),
     _tool("git_status", "Git çalışma ağacının durumunu göster (salt okunur).", {}),
@@ -101,6 +101,12 @@ class ToolRouter:
             return {"ok": False, "cancelled": True, "error": "Kullanıcı ajanı durdurdu."}
         if name not in {tool["function"]["name"] for tool in TOOL_DEFINITIONS}:
             return {"ok": False, "error": f"Bilinmeyen araç: {name}"}
+        if name == "run_command":
+            try:
+                CommandRunner.parse(str(arguments.get("command", "")))
+            except ValueError as exc:
+                self.context.activity(f"Terminal komutu reddedildi: {exc}")
+                return {"ok": False, "error": str(exc)}
         if name in self.APPROVAL_REQUIRED and not self.context.approve(name, arguments):
             return {"ok": False, "cancelled": True, "error": "Kullanıcı bu eylemi onaylamadı."}
         try:

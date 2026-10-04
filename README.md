@@ -12,7 +12,7 @@ Agent2; **PySide6 ile oluşturulmuş yerel Windows masaüstü uygulamasıdır** 
 - İstek, girdi/çıktı token tahmini/ölçümü, yürütme ve etkin süre sayaçları SQLite üzerinde tutulur. Ollama gerçek token sayısını vermediğinde UTF-8 uzunluğundan yaklaşık hesaplanır.
 - Kota yöneticisi: günlük istek/token/yürütme, oturum token/süresi ve komut zaman aşımı eşikleri; genel kilit, geliştirici geçersiz kılması, sayaç sıfırlama ve PBKDF2 ile saklanan yönetici parolası.
 - Git durum/fark/geçmiş, init/add/commit/dal işlemleri ve isteğe bağlı HTTPS GitHub pull/push. GitHub tokenı düz metin ayar dosyasına değil işletim sistemi anahtarlığına yazılır.
-- Push/PR/manuel Actions çalıştırmasında test ve Windows x64 paketlemesi; iki bağımsız `.exe` ve ortak ZIP artifact'i. `v*` etiketi push edildiğinde taslak GitHub Release hazırlanır.
+- Push/PR/manuel Actions çalıştırmasında test ve Windows x64 paketlemesi; iki bağımsız `.exe` ortak ZIP artifact'inin içinde sunulur. `v*` etiketi push edildiğinde aynı ZIP taslak GitHub Release'e eklenir.
 
 ## Gereksinimler ve yerel çalıştırma
 
@@ -75,7 +75,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-`.github/workflows/build.yml` Windows runner üzerinde bağımlılıkları kurar, testleri çalıştırır ve **Agent2.exe** ile **UsageLimitEditor.exe** dosyalarını PyInstaller ile bağımsız paketler. Workflow artifact bölümünden iki `.exe` dosyasını ve `Agent2-Windows.zip` paketini indirebilirsiniz.
+`.github/workflows/build.yml` Windows runner üzerinde bağımlılıkları kurar, testleri çalıştırır ve **Agent2.exe** ile **UsageLimitEditor.exe** dosyalarını PyInstaller ile bağımsız paketler. Workflow artifact bölümünden iki `.exe` dosyasını içeren `Agent2-Windows.zip` paketini indirebilirsiniz.
 
 - Kod push'u ve pull request: test + paket artifact'i.
 - Actions sekmesinden `Build Agent2 for Windows` → **Run workflow**: test + paket artifact'i.
@@ -111,6 +111,8 @@ tests/                         Otomatik testler
 ## Sorun giderme
 
 - Bağlantı hatası: Ollama'nın `127.0.0.1:11435` üzerinde çalıştığını, modelin `ollama list` çıktısında bulunduğunu ve Ayarlar'daki URL/modeli kontrol edin.
-- Araç çağrısı yok: kullanılan modelin Ollama araç çağrılarını desteklediğini doğrulayın; desteklemiyorsa Ayarlar'dan başka bir model seçin.
+- Araç çağrısı yok: kullanılan modelin Ollama araç çağrılarını desteklediğini doğrulayın; desteklemiyorsa Ayarlar'dan başka bir model seçin. Qwen3.5/3.6/3.8 için Agent2 düşünme kanalını kapatır; boş son yanıt gelirse bir kez araçsız yanıt kurtarmayı dener.
+- `XML syntax error` / `element <function> closed by </parameter>`: bu hata Ollama'nın model araç çağrısını ayrıştırırken oluşur. Agent2 güvenli biçimde bir kez yeniden dener; hata sürerse Ollama'yı güncelleyin veya araç çağrısı destekleyen başka model seçin. Daha önce başarıyla çalışan araç işlemleri geri alınmaz; tekrar denemeden önce dosya ağacını kontrol edin.
+- Klasör/dosya oluşturma: `mkdir` gibi komutlar terminal izin listesinde değildir. Ajan dosyayı `write_file` ile çalışma alanına göreli yolda oluşturur ve gerekli üst klasörleri kendisi açar.
 - GitHub erişim hatası: HTTPS depo adresini, token `Contents` izinlerini, Git kurulumunu ve temiz çalışma ağacını kontrol edin.
 - Uygulama logları kullanıcı veri klasöründeki `Agent2/logs/agent2.log` dosyasına döner; sohbet/token içeriği loglara yazılmaz.

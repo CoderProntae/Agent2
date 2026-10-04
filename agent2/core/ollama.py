@@ -119,8 +119,16 @@ class OllamaClient:
         }
         if tools:
             payload["tools"] = tools
+        # Qwen3.5 returns its reasoning in a separate `thinking` channel by default.
+        # Disabling that channel for tool-driven desktop work avoids empty final
+        # messages and reduces malformed XML tool-call drift. Ollama versions that
+        # predate this option safely ignore the unknown request field.
+        model_key = model.casefold()
+        if any(f"qwen3.{version}" in model_key for version in ("5", "6", "8")):
+            payload["think"] = False
         url = f"{self.base_url}/api/chat"
         last_error: Exception | None = None
+        parser_retry_used = False
 
         for attempt in range(self.retries + 1):
             response_started = False
@@ -135,6 +143,13 @@ class OllamaClient:
                 with self._client.stream("POST", url, json=payload) as response:
                     if response.status_code in {408, 425, 429} or response.status_code >= 500:
                         detail = response.read().decode("utf-8", "replace")[:1000]
+                        if tools and self._is_tool_call_parser_error(detail):
+                            if not parser_retry_used and attempt < self.retries and not response_started and not content_seen:
+                                parser_retry_used = True
+                                logger.warning("Ollama araç çağrısı ayrıştırılamadı; sınırlı bir kez yeniden deneniyor: %s", detail)
+                                time.sleep(min(0.25 * (2**attempt), 0.8))
+                                continue
+                            raise OllamaError(f"Ollama HTTP {response.status_code}: {detail}")
                         if attempt < self.retries:
                             time.sleep(min(0.4 * (2**attempt), 2.0))
                             continue
@@ -195,7 +210,14 @@ class OllamaClient:
                         model=selected_model,
                     )
                     return
-            except OllamaError:
+            except OllamaError as exc:
+                if tools and self._is_tool_call_parser_error(str(exc)):
+                    if not parser_retry_used and attempt < self.retries and not response_started and not content_seen:
+                        parser_retry_used = True
+                        logger.warning("Ollama araç çağrısı ayrıştırılamadı; sınırlı bir kez yeniden deneniyor: %s", exc)
+                        time.sleep(min(0.25 * (2**attempt), 0.8))
+                        continue
+                    raise OllamaError(self._tool_call_parser_guidance(str(exc), model)) from exc
                 raise
             except (httpx.RequestError, httpx.TimeoutException, OSError) as exc:
                 last_error = exc
@@ -207,6 +229,23 @@ class OllamaClient:
                 time.sleep(min(0.4 * (2**attempt), 2.0))
         logger.warning("Ollama bağlantısı başarısız", exc_info=last_error)
         raise OllamaError(f"Ollama'ya bağlanılamadı ({self.base_url}). Sunucuyu ve 11435 portunu kontrol edin.") from last_error
+
+    @staticmethod
+    def _is_tool_call_parser_error(message: str) -> bool:
+        lowered = message.casefold()
+        return "xml syntax error" in lowered or "tool call parsing failed" in lowered or (
+            "expected element type <function>" in lowered
+        )
+
+    @staticmethod
+    def _tool_call_parser_guidance(message: str, model: str) -> str:
+        detail = message if message.lower().startswith("ollama") else f"Ollama: {message}"
+        return (
+            f"{detail}\n\n"
+            f"Ollama, '{model}' modelinin araç çağrısını ayrıştıramadı. Ollama'yı güncelleyip yeniden deneyin "
+            "veya Ayarlar'dan araç çağrısı destekleyen başka bir model seçin. Bu hatadan önce onaylanmış araç "
+            "işlemleri geri alınmaz; tekrar denemeden önce çalışma alanını kontrol edin."
+        )
 
     @staticmethod
     def _merge_tool_calls(target: dict[int, dict[str, Any]], incoming: Any) -> None:
