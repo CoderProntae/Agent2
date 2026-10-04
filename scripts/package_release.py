@@ -23,7 +23,7 @@ def main() -> None:
     with zipfile.ZipFile(OUTPUT, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for path in FILES:
             archive.write(path, arcname=path.name)
-    print(f"Oluşturuldu: {OUTPUT} ({OUTPUT.stat().st_size:,} bayt)")
+    print(f"Created Agent2-Windows.zip ({OUTPUT.stat().st_size:,} bytes)")
 
 
 if __name__ == "__main__":
